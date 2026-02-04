@@ -5,24 +5,17 @@ import { LivenessService } from './liveness.service';
 @Component({
   selector: 'app-face-liveness',
   template: `
-    <div class="m-auto max-w-160 p-6">
-      <video
-        #video
-        autoplay
-        muted
-        playsinline
-        class="rounded-xl border-2 border-gray-300 aspect-4/3 w-160"
-      ></video>
+    <div class="camera-wrapper">
+      <video #video autoplay muted playsinline class="camera-video"></video>
 
-      <p class="mt-2 font-semibold">
-        {{ stepText() }}
-      </p>
-
-      <button (click)="start()" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg">
-        Boshlash
-      </button>
+      <!-- Overlay -->
+      <div class="overlay">
+        <div class="oval-mask" [class.border-red-500!]="isNotValidOval()"></div>
+        <p class="hint">{{ stepText() }}</p>
+      </div>
     </div>
   `,
+  styleUrls: ['./face-liveness.scss'],
 })
 export class FaceLiveness implements OnInit {
   @ViewChild('video') videoRef!: ElementRef<HTMLVideoElement>;
@@ -35,9 +28,30 @@ export class FaceLiveness implements OnInit {
 
   async ngOnInit() {
     await this.liveness.loadModels();
+    await this.start();
   }
 
+  isNotValidOval = computed(
+    () =>
+      this.liveness.currentFaceInsideStatus() === 'OUTSIDE_OVAL' ||
+      this.liveness.currentFaceInsideStatus() === 'NO_FACE',
+  );
   stepText = computed(() => {
+    const currentFaceStatus = this.liveness.currentFaceInsideStatus();
+
+    if (currentFaceStatus === 'NO_FACE') {
+      return '❌ Yuz aniqlanmadi, iltimos, kameraga qarang';
+    }
+    if (currentFaceStatus === 'OUTSIDE_OVAL') {
+      return '📐 Iltimos, yuzingizni oval ichiga joylashtiring';
+    }
+    if (currentFaceStatus === 'COME_CLOSE') {
+      return '🔍 Iltimos, kameraga yaqinroq turing';
+    }
+    if (currentFaceStatus === 'VERY_CLOSE') {
+      return '📷 Juda yaqin, kamerani orqaroq oling';
+    }
+
     switch (this.liveness.currentStep()) {
       case 'BLINK':
         return '👁 Ko‘zingizni yumib oching(kamida 2 marta)';
@@ -45,8 +59,10 @@ export class FaceLiveness implements OnInit {
         return '🙂 Og‘zingizni ochib yuming (kamida yarim ochish kerak)';
       case 'HEAD':
         return '↔️ Boshni chapga yoki o‘ngga burang';
+      case 'HOLD':
+        return '✋ Barqaror turing (2 soniya)';
       default:
-        return '✅ Tayyor';
+        return '✅ Tayyor!';
     }
   });
 
