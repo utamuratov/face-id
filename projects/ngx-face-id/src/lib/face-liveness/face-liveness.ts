@@ -28,7 +28,9 @@ import { isPlatformBrowser } from '@angular/common';
       </div>
     </div>
     @if (loadingResourses()) {
-      <p class="loading-text">{{ loadingMessage() }}</p>
+      <div class="loading-text-container">
+        <p class="loading-text">{{ loadingMessage() }}</p>
+      </div>
     }
   `,
   styleUrls: ['./face-liveness.scss'],
