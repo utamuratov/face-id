@@ -1,23 +1,33 @@
-import { Component, ElementRef, ViewChild, OnInit, computed, output } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  ViewChild,
+  OnInit,
+  computed,
+  output,
+  OnDestroy,
+} from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { LivenessService } from './liveness.service';
+import { NgClass } from '@angular/common';
 
 @Component({
   selector: 'app-face-liveness',
+  imports: [NgClass],
   template: `
     <div class="camera-wrapper">
       <video #video autoplay muted playsinline class="camera-video"></video>
 
       <!-- Overlay -->
       <div class="overlay">
-        <div class="oval-mask" [class.border-red-500!]="isNotValidOval()"></div>
+        <div class="oval-mask" [ngClass]="{ 'border-red-500!': isNotValidOval() }"></div>
         <p class="hint">{{ stepText() }}</p>
       </div>
     </div>
   `,
   styleUrls: ['./face-liveness.scss'],
 })
-export class FaceLiveness implements OnInit {
+export class FaceLiveness implements OnInit, OnDestroy {
   @ViewChild('video') videoRef!: ElementRef<HTMLVideoElement>;
   intervalId: any;
 
@@ -112,4 +122,6 @@ export class FaceLiveness implements OnInit {
     // fd.append('file', blob, 'face.jpg');
     // this.http.post('/api/face/verify', fd).subscribe();
   }
+
+  ngOnDestroy(): void {}
 }
