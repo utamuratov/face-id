@@ -1,0 +1,19 @@
+{
+  "name": "ngx-face-id",
+  "version": "0.0.1",
+  "description": "Face Id liveness",
+  "author": "Odilbek Utamuratov",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "peerDependencies": {
+    "@angular/common": ">=19.0.0",
+    "@angular/core": ">=19.0.0",
+    "face-api.js": "^0.23.0"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "sideEffects": false
+}

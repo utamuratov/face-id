@@ -1,9 +1,8 @@
 import { Component, ElementRef, ViewChild, OnInit, computed, output } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { LivenessService } from './liveness.service';
 
 @Component({
-  selector: 'app-face-liveness',
+  selector: 'ngx-face-liveness',
   template: `
     <div class="camera-wrapper">
       <video #video autoplay muted playsinline class="camera-video"></video>
@@ -17,16 +16,13 @@ import { LivenessService } from './liveness.service';
   `,
   styleUrls: ['./face-liveness.scss'],
 })
-export class FaceLiveness implements OnInit {
+export class NgxFaceLiveness implements OnInit {
   @ViewChild('video') videoRef!: ElementRef<HTMLVideoElement>;
   intervalId: any;
 
   capturedImage = output<Blob>();
 
-  constructor(
-    private liveness: LivenessService,
-    private http: HttpClient,
-  ) {}
+  constructor(private liveness: LivenessService) {}
 
   async ngOnInit() {
     await this.liveness.loadModels();

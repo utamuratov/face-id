@@ -69,6 +69,32 @@
           "builder": "@angular/build:unit-test"
         }
       }
+    },
+    "ngx-face-id": {
+      "projectType": "library",
+      "root": "projects/ngx-face-id",
+      "sourceRoot": "projects/ngx-face-id/src",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/ngx-face-id/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/ngx-face-id/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/ngx-face-id/tsconfig.spec.json"
+          }
+        }
+      }
     }
   }
 }
