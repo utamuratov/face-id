@@ -3,3 +3,4 @@
  */
 
 export * from './lib/face-liveness/face-liveness';
+export * from './lib/face-liveness/face-id.service';

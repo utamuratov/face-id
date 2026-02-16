@@ -2,15 +2,16 @@ import { Routes } from '@angular/router';
 
 export const routes: Routes = [
   {
-    path: 'face-id',
+    path: '',
+    redirectTo: 'comparision',
+    pathMatch: 'full',
+  },
+  {
+    path: 'comparision',
     loadComponent: () => import('./face-id/face-id').then((m) => m.FaceId),
   },
   {
-    path: 'face-liveness',
-    loadComponent: () => import('./face-liveness/face-liveness').then((m) => m.FaceLiveness),
-  },
-  {
-    path: 'ngx-face-id',
+    path: 'liveness',
     loadComponent: () => import('./ngx-face-id/ngx-face-id').then((m) => m.NgxFaceId),
   },
 ];

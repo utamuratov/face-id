@@ -8,6 +8,7 @@ import {
   inject,
   PLATFORM_ID,
   signal,
+  OnDestroy,
 } from '@angular/core';
 import { LivenessService } from './liveness.service';
 import { isPlatformBrowser } from '@angular/common';
@@ -23,8 +24,20 @@ import { isPlatformBrowser } from '@angular/common';
 
       <!-- Overlay -->
       <div class="overlay">
-        <div class="oval-mask" [style.borderColor]="isNotValidOval() ? '#fb2c36' : '#65a0f8'"></div>
-        <p class="hint">{{ stepText() }}</p>
+        <div class="oval-mask" [style.borderColor]="ovalColor()"></div>
+        @let stepTxt = stepText();
+        @if (stepTxt) {
+          <p class="hint">{{ stepTxt }}</p>
+        }
+
+        <!-- Challenge yo'nalish ko'rsatkichi -->
+        @if (currentChallenge()) {
+          <div class="challenge-indicator">
+            <div class="arrow" [class]="'arrow-' + currentChallenge()?.toLowerCase()">
+              {{ getChallengeArrow() }}
+            </div>
+          </div>
+        }
       </div>
     </div>
     @if (loadingResourses()) {
@@ -35,63 +48,109 @@ import { isPlatformBrowser } from '@angular/common';
   `,
   styleUrls: ['./face-liveness.scss'],
 })
-export class NgxFaceLiveness implements OnInit {
+export class NgxFaceLiveness implements OnInit, OnDestroy {
   private platformId = inject(PLATFORM_ID);
   private isBrowser = isPlatformBrowser(this.platformId);
   loadingResourses = signal(true);
   loadingMessage = signal('Kamera yuklanmoqda...');
+  private liveness = inject(LivenessService);
 
   @ViewChild('video') videoRef!: ElementRef<HTMLVideoElement>;
   intervalId: any;
 
-  capturedImage = output<Blob>();
+  private attemptsImages: Blob[] = [];
+  capturedImages = output<Blob[]>();
   capturesImageSrc = signal<string | null>(null);
-
-  constructor(private liveness: LivenessService) {}
 
   async ngOnInit() {
     if (!this.isBrowser) return;
-
-    await this.liveness.loadModels();
     await this.start();
   }
 
   currentStep = computed(() => this.liveness.currentStep());
   currentFaceInsideStatus = computed(() => this.liveness.currentFaceInsideStatus());
-  isNotValidOval = computed(
-    () =>
-      this.currentFaceInsideStatus() === 'OUTSIDE_OVAL' ||
-      this.currentFaceInsideStatus() === 'NO_FACE',
-  );
+  currentChallenge = computed(() => this.liveness.currentChallenge());
+
+  ovalColor = computed(() => {
+    const status = this.currentFaceInsideStatus();
+    if (status === 'FACE_UNSTABLE') return '#ff0000'; // qizil
+    if (status === 'OUTSIDE_OVAL') return '#ffa500'; // to'q sariq
+    if (status === 'VERY_CLOSE') return '#ffff00'; // to'q sariq
+    if (status === 'COME_CLOSE') return '#ffff00'; // sariq
+    return '#65a0f8'; // default ko'k (sizning rangingiz)
+  });
+
   stepText = computed(() => {
     const currentFaceStatus = this.currentFaceInsideStatus();
 
-    if (currentFaceStatus === 'NO_FACE') {
-      return '❌ Yuz aniqlanmadi, kameraga qarang';
-    }
     if (currentFaceStatus === 'OUTSIDE_OVAL') {
-      return '📐 Yuzingizni oval ichiga joylashtiring';
+      return '🔍 Yuzingizni oval ichiga joylashtiring';
     }
     if (currentFaceStatus === 'COME_CLOSE') {
       return '🔍 Kameraga yaqinroq turing';
     }
     if (currentFaceStatus === 'VERY_CLOSE') {
-      return '📷 Juda yaqin, kamerani orqaroq oling';
+      return '📷 Kamera juda yaqin';
+    }
+    if (currentFaceStatus === 'FACE_UNSTABLE') {
+      return '';
     }
 
     switch (this.currentStep()) {
+      case 'CHALLENGE':
+        return this.getChallengeText();
       case 'BLINK':
-        return '👁 Ko‘zingizni yumib oching(2 marta)';
-      case 'MOUTH':
-        return '🙂 Og‘zingizni ochib yuming';
+        return "👁 Ko'zingizni yumib oching (bir necha marta)";
       case 'HEAD':
-        return '↔️ Boshni chapga yoki o‘ngga burang';
+        return '↔️ Boshni biroz burang';
       case 'HOLD':
-        return '✋ Barqaror turing (2 soniya)';
+        return "✋ Kameraga qarang va to'g'ri turing (2 soniya)";
+      case 'DONE':
+        return '✅ Tekshirilmoqda...';
+      case 'SPOOF_DETECTED':
+        return '🚫 Xavfsizlik tekshiruvi muvaffaqiyatsiz!';
+      case 'MY_ID_FAIL':
+        return "❌ O'xshashlik darajasi past!";
       default:
-        return '✅ Tayyor!';
+        return '';
     }
   });
+
+  getChallengeText(): string {
+    const direction = this.currentChallenge();
+    if (!direction) return '';
+
+    switch (direction) {
+      case 'LEFT':
+        return '⬅️ Yuzingizni chapga buring';
+      case 'RIGHT':
+        return "➡️ Yuzingizni o'ngga buring";
+      // case 'UP':
+      //     return '⬆️ Yuqoriga qarang';
+      // case 'DOWN':
+      //     return '⬇️ Pastga qarang';
+      default:
+        return '';
+    }
+  }
+
+  getChallengeArrow(): string {
+    const direction = this.currentChallenge();
+    if (!direction) return '';
+
+    switch (direction) {
+      case 'LEFT':
+        return '←';
+      case 'RIGHT':
+        return '→';
+      // case 'UP':
+      //     return '↑';
+      // case 'DOWN':
+      //     return '↓';
+      default:
+        return '';
+    }
+  }
 
   async start() {
     this.liveness.reset();
@@ -100,12 +159,19 @@ export class NgxFaceLiveness implements OnInit {
     this.intervalId = setInterval(async () => {
       const done = await this.liveness.process(this.videoRef.nativeElement);
 
-      if (done) {
-        clearInterval(this.intervalId);
+      if (done.capture) {
         const blob = await this.capture();
-        this.sendToBackend(blob);
+        if (done.reset) {
+          this.attemptsImages = [];
+        }
+        this.attemptsImages.push(blob);
+
+        if (done.done) {
+          clearInterval(this.intervalId);
+          this.sendToBackend(blob);
+        }
       }
-    }, 300);
+    }, 400);
   }
 
   async openCamera() {
@@ -118,23 +184,18 @@ export class NgxFaceLiveness implements OnInit {
         throw new Error('No video devices found');
       }
 
-      // USB yoki default camera tanlash
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           deviceId: videoDevices[0].deviceId,
-        }, // birinchi topilgan kamera
+        },
       });
 
       this.videoRef.nativeElement.srcObject = stream;
       this.loadingResourses.set(false);
     } catch (err) {
       console.error('Cannot access camera:', err);
+      this.loadingMessage.set('Kameraga kirish rad etildi!');
     }
-
-    // const stream = await navigator.mediaDevices.getUserMedia({
-    //   video: { facingMode: 'user', aspectRatio: 3 / 4, width: { min: 480 }, height: { min: 640 } },
-    // });
-    // this.videoRef.nativeElement.srcObject = stream;
   }
 
   async capture(): Promise<Blob> {
@@ -150,29 +211,21 @@ export class NgxFaceLiveness implements OnInit {
   }
 
   sendToBackend(blob: Blob) {
-    this.capturedImage.emit(blob);
+    this.capturedImages.emit(this.attemptsImages);
     this.capturesImageSrc.set(URL.createObjectURL(blob));
-    console.log(blob);
-
-    // const fd = new FormData();
-    // fd.append('file', blob, 'face.jpg');
-    // this.http.post('/api/face/verify', fd).subscribe();
   }
 
   ngOnDestroy(): void {
     if (!this.isBrowser) return;
-
     this.cleanup();
   }
 
   private cleanup() {
-    // 1️⃣ Interval
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
 
-    // 2️⃣ Kamera
     const video = this.videoRef?.nativeElement;
     if (video) {
       video.pause();
@@ -185,7 +238,6 @@ export class NgxFaceLiveness implements OnInit {
       video.srcObject = null;
     }
 
-    // 3️⃣ Service state
     this.liveness.reset();
   }
 }

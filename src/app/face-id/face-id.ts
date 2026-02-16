@@ -6,7 +6,10 @@ import {
   signal,
   ViewChild,
 } from '@angular/core';
-import { FaceIdService, FaceVerifyResult } from './face-id.service';
+import {
+  FaceIdService,
+  FaceVerifyResult,
+} from '../../../projects/ngx-face-id/src/lib/face-liveness/face-id.service';
 import { finalize } from 'rxjs';
 
 @Component({
@@ -104,6 +107,10 @@ export class FaceId {
     './images/faces/decabrio-1.jpg',
     './images/faces/decabrio-2.jpg',
   ];
+
+  constructor() {
+    this.$faceId.loadModels();
+  }
 
   handleCheckButtonClick() {
     this.faceRecognationLoading.set(true);
